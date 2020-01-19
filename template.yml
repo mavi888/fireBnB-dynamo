@@ -1,0 +1,225 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Resources:
+
+  MyApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: dev
+
+  SearchByLocationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.searchByLocation
+      Runtime: nodejs12.x
+      CodeUri: ./firebnb
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: PropertiesTableGSI
+      Environment:
+        Variables:
+          TABLE_NAME: PropertiesTableGSI
+          INDEX_NAME: Properties_GSI1
+      Events:
+        HelloAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MyApi
+            Path: /search
+            Method: GET
+    
+  GetPropertyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.getProperty
+      Runtime: nodejs12.x
+      CodeUri: ./firebnb
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: PropertiesTableGSI
+      Environment:
+        Variables:
+          TABLE_NAME: PropertiesTableGSI
+      Events:
+        HelloAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MyApi
+            Path: /property
+            Method: GET
+
+  GetAllPropertiesForOwner:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.getPropertiesForOwner
+      Runtime: nodejs12.x
+      CodeUri: ./firebnb
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: PropertiesTableGSI
+      Environment:
+        Variables:
+          TABLE_NAME: PropertiesTableGSI
+          INDEX_NAME: Properties_GSI2
+      Events:
+        HelloAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MyApi
+            Path: /properties
+            Method: GET
+  
+  AddNewProperty:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.addNewProperty
+      Runtime: nodejs12.x
+      CodeUri: ./firebnb
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: PropertiesTableGSI
+      Environment:
+        Variables:
+          TABLE_NAME: PropertiesTableGSI
+      Events:
+        HelloAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MyApi
+            Path: /property
+            Method: POST
+    
+  BookAProperty:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.bookProperty
+      Runtime: nodejs12.x
+      CodeUri: ./firebnb
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: PropertiesTableGSI
+      Environment:
+        Variables:
+          TABLE_NAME: PropertiesTableGSI
+      Events:
+        HelloAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MyApi
+            Path: /book
+            Method: POST
+  
+  GetBookedDatesProperty:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.getBookedDatesProperty
+      Runtime: nodejs12.x
+      CodeUri: ./firebnb
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: PropertiesTableGSI
+      Environment:
+        Variables:
+          TABLE_NAME: PropertiesTableGSI
+      Events:
+        HelloAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MyApi
+            Path: /propertyDates
+            Method: GET
+
+  GetBookedPropertiesForUsers:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.getBookedPropertiesForUsers
+      Runtime: nodejs12.x
+      CodeUri: ./firebnb
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: PropertiesTableGSI
+      Environment:
+        Variables:
+          TABLE_NAME: PropertiesTableGSI
+          INDEX_NAME: Properties_GSI3
+      Events:
+        HelloAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MyApi
+            Path: /propertyUser
+            Method: GET
+
+  DynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: PropertiesTableGSI
+      AttributeDefinitions:
+        - AttributeName: propertyId
+          AttributeType: S
+        - AttributeName: sortKey
+          AttributeType: S   
+        - AttributeName: country_city
+          AttributeType: S     
+        - AttributeName: ownerId
+          AttributeType: S  
+        - AttributeName: startBookingDate
+          AttributeType: S               
+        - AttributeName: userId
+          AttributeType: S   
+      KeySchema:
+        - AttributeName: propertyId
+          KeyType: HASH
+        - AttributeName: sortKey
+          KeyType: RANGE
+      ProvisionedThroughput: 
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+      GlobalSecondaryIndexes:
+        - IndexName: Properties_GSI1
+          KeySchema: 
+            - AttributeName: country_city
+              KeyType: HASH
+            - AttributeName: propertyId
+              KeyType: RANGE
+          Projection:
+            NonKeyAttributes: [ownerId, title, description, city, country]
+            ProjectionType: INCLUDE
+          ProvisionedThroughput: 
+            ReadCapacityUnits: 1
+            WriteCapacityUnits: 1
+        - IndexName: Properties_GSI2
+          KeySchema: 
+            - AttributeName: ownerId
+              KeyType: HASH
+            - AttributeName: propertyId
+              KeyType: RANGE
+          Projection:
+            NonKeyAttributes: [title, description, city, country]
+            ProjectionType: INCLUDE
+          ProvisionedThroughput: 
+            ReadCapacityUnits: 1
+            WriteCapacityUnits: 1
+        - IndexName: Properties_GSI3
+          KeySchema: 
+            - AttributeName: userId
+              KeyType: HASH
+            - AttributeName: startBookingDate
+              KeyType: RANGE
+          Projection:
+            NonKeyAttributes: [propertyId, endBookingDate]
+            ProjectionType: INCLUDE
+          ProvisionedThroughput: 
+            ReadCapacityUnits: 1
+            WriteCapacityUnits: 1
+
+Outputs:
+  Region:
+    Description: Region
+    Value: !Ref AWS::Region
+  ApiId:
+    Description: API ID
+    Value: !Ref MyApi
+  ApiUrl:
+    Description: API endpoint URL for Prod environment
+    Value: !Sub https://${MyApi}.execute-api.${AWS::Region}.amazonaws.com/dev/
